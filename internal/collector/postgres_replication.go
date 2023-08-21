@@ -1,11 +1,13 @@
 package collector
 
 import (
+	"strconv"
+
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/lesovsky/pgscv/internal/log"
 	"github.com/lesovsky/pgscv/internal/model"
 	"github.com/lesovsky/pgscv/internal/store"
-	"github.com/prometheus/client_golang/prometheus"
-	"strconv"
 )
 
 const (
@@ -44,7 +46,7 @@ type postgresReplicationCollector struct {
 // NewPostgresReplicationCollector returns a new Collector exposing postgres replication stats.
 // For details see https://www.postgresql.org/docs/current/monitoring-stats.html#PG-STAT-REPLICATION-VIEW
 func NewPostgresReplicationCollector(constLabels labels, settings model.CollectorSettings) (Collector, error) {
-	var labelNames = []string{"client_addr", "user", "application_name", "state", "lag"}
+	var labelNames = []string{"pid", "client_addr", "user", "application_name", "state", "lag"}
 
 	return &postgresReplicationCollector{
 		labelNames: labelNames,
@@ -63,13 +65,13 @@ func NewPostgresReplicationCollector(constLabels labels, settings model.Collecto
 		lagtotalbytes: newBuiltinTypedDesc(
 			descOpts{"postgres", "replication", "lag_all_bytes", "Number of bytes standby is behind than primary including all phases.", 0},
 			prometheus.GaugeValue,
-			[]string{"client_addr", "user", "application_name", "state"}, constLabels,
+			[]string{"pid", "client_addr", "user", "application_name", "state"}, constLabels,
 			settings.Filters,
 		),
 		lagtotalseconds: newBuiltinTypedDesc(
 			descOpts{"postgres", "replication", "lag_all_seconds", "Number of seconds standby is behind than primary including all phases.", 0},
 			prometheus.GaugeValue,
-			[]string{"client_addr", "user", "application_name", "state"}, constLabels,
+			[]string{"pid", "client_addr", "user", "application_name", "state"}, constLabels,
 			settings.Filters,
 		),
 	}, nil
@@ -94,31 +96,31 @@ func (c *postgresReplicationCollector) Update(config Config, ch chan<- prometheu
 
 	for _, stat := range stats {
 		if value, ok := stat.values["pending_lag_bytes"]; ok {
-			ch <- c.lagbytes.newConstMetric(value, stat.clientaddr, stat.user, stat.applicationName, stat.state, "pending")
+			ch <- c.lagbytes.newConstMetric(value, stat.pid, stat.clientaddr, stat.user, stat.applicationName, stat.state, "pending")
 		}
 		if value, ok := stat.values["write_lag_bytes"]; ok {
-			ch <- c.lagbytes.newConstMetric(value, stat.clientaddr, stat.user, stat.applicationName, stat.state, "write")
+			ch <- c.lagbytes.newConstMetric(value, stat.pid, stat.clientaddr, stat.user, stat.applicationName, stat.state, "write")
 		}
 		if value, ok := stat.values["flush_lag_bytes"]; ok {
-			ch <- c.lagbytes.newConstMetric(value, stat.clientaddr, stat.user, stat.applicationName, stat.state, "flush")
+			ch <- c.lagbytes.newConstMetric(value, stat.pid, stat.clientaddr, stat.user, stat.applicationName, stat.state, "flush")
 		}
 		if value, ok := stat.values["replay_lag_bytes"]; ok {
-			ch <- c.lagbytes.newConstMetric(value, stat.clientaddr, stat.user, stat.applicationName, stat.state, "replay")
+			ch <- c.lagbytes.newConstMetric(value, stat.pid, stat.clientaddr, stat.user, stat.applicationName, stat.state, "replay")
 		}
 		if value, ok := stat.values["write_lag_seconds"]; ok {
-			ch <- c.lagseconds.newConstMetric(value, stat.clientaddr, stat.user, stat.applicationName, stat.state, "write")
+			ch <- c.lagseconds.newConstMetric(value, stat.pid, stat.clientaddr, stat.user, stat.applicationName, stat.state, "write")
 		}
 		if value, ok := stat.values["flush_lag_seconds"]; ok {
-			ch <- c.lagseconds.newConstMetric(value, stat.clientaddr, stat.user, stat.applicationName, stat.state, "flush")
+			ch <- c.lagseconds.newConstMetric(value, stat.pid, stat.clientaddr, stat.user, stat.applicationName, stat.state, "flush")
 		}
 		if value, ok := stat.values["replay_lag_seconds"]; ok {
-			ch <- c.lagseconds.newConstMetric(value, stat.clientaddr, stat.user, stat.applicationName, stat.state, "replay")
+			ch <- c.lagseconds.newConstMetric(value, stat.pid, stat.clientaddr, stat.user, stat.applicationName, stat.state, "replay")
 		}
 		if value, ok := stat.values["total_lag_bytes"]; ok {
-			ch <- c.lagtotalbytes.newConstMetric(value, stat.clientaddr, stat.user, stat.applicationName, stat.state)
+			ch <- c.lagtotalbytes.newConstMetric(value, stat.pid, stat.clientaddr, stat.user, stat.applicationName, stat.state)
 		}
 		if value, ok := stat.values["total_lag_seconds"]; ok {
-			ch <- c.lagtotalseconds.newConstMetric(value, stat.clientaddr, stat.user, stat.applicationName, stat.state)
+			ch <- c.lagtotalseconds.newConstMetric(value, stat.pid, stat.clientaddr, stat.user, stat.applicationName, stat.state)
 		}
 	}
 
